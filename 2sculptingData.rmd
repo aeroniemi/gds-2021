@@ -1,0 +1,81 @@
+# Sculpting data for fun and profit
+## Libraries
+```{r}
+    library(tidyverse)
+    library(sf)
+    library(ggplot2)
+  library(tmap)
+```
+
+## Import the data
+```{r}
+    weca = st_as_sf(st_read("./data/weca.gpkg"))
+```
+
+## 1: Looking at the data
+
+### 1.1: Filton temperatures
+```{r}
+    library(readr)
+    temps = read_csv("./data/bristol_yearly_temps.csv")
+    temps
+```
+This data is bad because variables (max/min/median) are in one singular column, so it doesn't follow the rules. This is easy to fix.
+
+### 1.2: Fixing Filton's temperatures
+It's as easy as a single pivot
+```{r}
+    tidyTemps = pivot_wider(temps, 
+        c("year","stat"),
+        names_from = "stat",
+        values_from = "degrees_celsius"
+    )
+    head(tidyTemps)
+```
+All three rules are now met, seporate columns for different datatypes, a single row per record and a single datapoint per cell
+
+### 1.3: WECA has a problem
+As per usual, WECA just isn't up to scratch. In this case, it's got datapoints in the headers. That just won't do. We must abolish WECA('s datapoints).
+
+## 2: Tidying the data
+### 2.1: Tidying up a WECA
+```{r}
+    tidyWeca = pivot_longer(weca,5:97,
+    names_to = c("month", "year"), values_to = "housePrice", names_prefix = "price_", names_sep = "_")
+tidyWeca$year = as.numeric(tidyWeca$year)
+```
+In all cases, the date (month/year) is in its own column now, yay
+
+### 2.2: A boxplot
+```{r}
+ggplot(tidyWeca, aes(y=housePrice, x=year, color=la_name))+geom_boxplot()
+```
+### 2.3: More summary stats
+
+#### Average price per year
+```{r}
+appy = group_by(tidyWeca, year) %>% summarise(mean=mean(housePrice, na.rm=T))
+```
+#### Average price per LA per year
+```{r}
+applay = group_by(tidyWeca, year ,la_name) %>% summarise(mean=mean(housePrice, na.rm=T))
+```
+
+#### Median price per LSOA per year since 2008
+```{r}
+mplsoa2008 = filter(tidyWeca, year >=2008) %>% group_by(lsoa_name) %>% summarise(mean=median(housePrice, na.rm=T))
+```
+
+#### 2.c: Percentage change map
+```{r}
+# get the average price by year for each lsoa
+appylsoa = filter(tidyWeca, year == 2008 | year==2018) %>% group_by(year, lsoa_name) %>% summarise(mean=mean(housePrice, na.rm=T))
+```
+
+```{r}
+pcm = group_by(appylsoa, lsoa_name) %>% summarise(pc = ((last(mean)+first(mean))/first(mean)))
+```
+
+```{r}
+qtm(pcm, fill=pc)
+```

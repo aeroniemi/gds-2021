@@ -1,0 +1,380 @@
+# Midterms
+```{r, echo=FALSE,message = FALSE, error=FALSE, warning=FALSE}
+knitr::opts_chunk$set(message = FALSE, error=FALSE, warning=FALSE)
+library(tidyverse)
+library(ggrepel)
+```
+
+## 1/2: Concepts - what is wrong, and how can it be fixed?
+### Movies
+```{r}
+movies <- read_csv('./data/midterm-movies.csv')
+movies %>% head(12) %>% knitr::kable()
+```
+#### What is wrong?
+
+Column ``finance`` contains variables (``budget``, ``domgross``, ``intgross``), which should instead exist as their own independent columns. Thus, there are multiple rows per observation
+
+#### How do I fix it?
+```{r}
+moviesTidy <- pivot_wider(movies, 
+	names_from = "finance", 
+	values_from = "dollars"
+)
+
+moviesTidy %>% head(12) %>% knitr::kable()
+```
+
+### Aussie Birds
+```{r}
+birds <- read_csv('./data/midterm-birds.csv')
+
+birds %>%
+	drop_na() %>%
+	arrange(bioregions) %>%
+	sample_n(6) %>%
+	select(1:10) %>%
+	knitr::kable()
+```
+#### What is wrong?
+- Samples (the type of bird, and it's popularity) are in columns, not rows
+- Variables (whether rural or urban) would be better as columns
+
+#### How to fix it?
+```{r}
+birdsTidy <- birds %>% 
+	drop_na() %>%
+	pivot_longer(4:172, names_to = "species", values_to="count") %>% 
+	pivot_wider(names_from="urban_rural", values_from="count")
+
+birdsTidy %>% arrange(bioregions) %>% sample_n(6) %>% knitr::kable()
+```
+
+### Songs
+```{r}
+spotify <- read_csv('./data/midterm-songs.csv')
+
+spotify %>% 
+	select(track_name, track_artist, 
+		track_popularity, 
+		danceability, 
+		loudness, 
+		duration_ms
+	) %>% 
+	sample_n(10, weight=track_popularity) %>% 
+	knitr::kable()
+```
+
+#### What is wrong?
+I can't find anything wrong with this dataset.
+
+### French Trains
+```{r}
+trains <- read_csv('./data/midterm-trains.csv')
+
+trains %>% 
+	select(1:5) %>% 
+	slice(1:10) %>% 
+	knitr::kable()
+```
+#### What is wrong?
+- The destinations are in columns
+- In this instance, a sample is one "route" between two stations, so the stations are also variables alongside the frequency
+
+#### How to fix it?
+```{r}
+trainsTidy <- pivot_longer(trains, 
+	2:61, 
+	names_to="destination_station", 
+	values_to="num_trains"
+)
+
+trainsTidy %>% 
+	slice(1:10) %>% 
+	knitr::kable()
+```
+
+### EU Energy
+```{r}
+energy <- read_csv('./data/midterm-energy.csv')
+
+energy %>% select(1:12) %>% knitr::kable()
+```
+
+#### What is wrong?
+- Variables (type of power) are in rows, rather than columns
+- Samples (each country) are in columns rather than rows
+
+#### How to fix it?
+```{r}
+energyTidy = pivot_longer(energy, 2:40, names_to="country", values_to ="perc") %>%
+	pivot_wider(names_from="energy_type", values_from="perc")
+
+energyTidy %>% slice(1:10) %>% knitr::kable()
+```
+
+### MarioKart
+```{r}
+mk_records <- read_csv('./data/midterm-races.csv')
+
+mk_records %>% knitr::kable()
+```
+
+### What is wrong?
+- 1 and 3 lap records are different samples from different events, so should be rows
+- The number of laps (1 or 3) is a variable, and thus should be a column
+
+### How to fix it?
+```{r}
+mk2 = mk_records
+
+colnames(mk2) = c("track", "time_1", "date_1", "time_3", "date_3")
+
+mk_recordsTidy = pivot_longer(mk2, cols = -track, 
+	names_to = c('.value', 'laps'), 
+	names_sep = "_"
+)
+
+mk_recordsTidy %>% slice(1:10) %>% knitr::kable()
+```
+
+### Eco Risk
+```{r}
+risk <- read_csv('./data/midterm-risk.csv', name_repair='minimal')
+
+risk %>% knitr::kable()
+```
+### What is wrong?
+The table is tidy, it's just that instead of showing as one set of two columns, it's been squashed into many column sets to fit on a page
+columns have the same name, which can be resolved by renaming them
+
+There are also some entry issues, such as on dataframe line 26 (Saudia Arabia is missing a delimiter) - this can be fixed by adding the appropriate delimiters in the csv file, and removing unneeded NA entries.
+
+### How to fix it?
+```{r}
+risk2 <- read_csv('./data/midterm-risk-fixed.csv')
+
+risk3 = risk2 %>%
+	unite("a",1:3, sep="&") %>% 
+	unite("b",2:4, sep="&") %>% 
+	unite("c",3:5, sep="&") %>% 
+	pivot_longer(1:3) %>% 
+	select(2) %>%
+	separate(1, c("rank", "country", "cost"), sep="&") %>% 
+	mutate(
+		rank=as.numeric(rank), 
+		cost=as.numeric(str_replace(cost, coll("$"), "") %>% str_replace( coll(","), ""))
+	) %>%
+	drop_na(rank) %>%
+	arrange(rank)
+
+risk3 %>% knitr::kable()
+```
+
+## 3: Analysis
+### Movies
+#### 3.1: Which ten movies lost the most money domestically? Are these the same movies that lost the most money overall?
+*Lost* implies we're looking at profit, so let's add some profit columns
+```{r}
+movies31 = moviesTidy %>%
+	mutate(domprofit = domgross - budget, totalprofit = domgross + intgross - budget)
+```
+
+Now we know this, let's sort and filter to get a list of the 10 biggest losses domestically and overall:
+```{r}
+movies31 %>%
+	mutate(
+		domrank = rank(domprofit),
+		totalrank = rank(totalprofit)
+	) %>%
+	arrange(domprofit) %>%
+	slice(1:10) %>%
+	select(c(-domgross, -intgross)) %>%
+	knitr::kable()
+```
+
+It appears that poor performance domestically isn't an indicator of the worst performance internationally/overall - only 2 films made it into the top 10 worst performers on both lists.
+
+#### 3.2: What is the average budget for a movie in each year?
+```{r}
+movies32 = moviesTidy%>%group_by(year) %>% summarize(meanBudget = mean(budget))
+
+movies32 %>% knitr::kable()
+```
+
+#### 3.3: Which movie had the largest gap between domestic and overseas box office performance?
+```{r}
+moviesTidy %>% mutate(grossdifference = abs(intgross-domgross)) %>%arrange(desc(grossdifference))%>% slice(1:10) %>% select(c(-budget)) %>% knitr::kable()
+```
+
+*This table presents the absolute difference between international and domestic performance*
+
+*Avatar* had the highest difference between domestic and international performance, generating more than $2.02Bn more internationally than within the domestic US market. 
+
+#### 3.4: Make a visualization that shows how the budget for movies has increased over time. Discuss how you designed the plot in order to emphasize this message.
+```{r}
+ggplot() +
+geom_point(data=moviesTidy,mapping= aes(year, budget), alpha=0.2, size=1.5, shape="square", position="jitter") +
+geom_line(data=movies32, mapping=aes(year, meanBudget), colour="#ad466c", size=1) +
+scale_y_continuous(
+	limits=c(NA, 2e+8), 
+	labels = scales::unit_format(unit = "M", scale = 1e-6)
+) +
+	labs(
+		title="Film Budgets over time",
+		x="Year", 
+		y="Budget / USD"
+	)
+```
+
+In order to show how the budget of films has changed over time I have chosen to draw a chart containing two different visualisations - Firstly, a red line showing the average budget of films over a year (using the same data as in 3.2), which shows clearly that over time, the average budget has increased. Additionally, I've included datapoints for each film individually with a low alpha, which show more clearly the outliers, particularly how the maximum budgets of films have increased to and beyond 200M USD. It does also show how there has been an increase in the number of low budget films, particularly since 2010. These datapoints have been jittered to reduce overlap and fill the background more clearly in the more recent years. 
+
+#### 3.5: Make a visualization that shows how the typical profit movies make has generally not changed over time, but that a few outliers do make increasingly more money. Discuss how you designed the plot in order to emphasize this message.
+```{r}
+ggplot() +
+	geom_point(data=filter(movies31, totalprofit<1.2e+9), aes(year, totalprofit), alpha=0.2, size=1.5, shape="square", position="jitter") +
+	geom_point(data=filter(movies31, totalprofit>1.2e+9), aes(year, totalprofit), alpha=0.5, size=1.5, shape="square", position="jitter", colour="#1d4f60") +
+	scale_y_continuous( 
+		labels = scales::unit_format(unit = "M", scale = 1e-6)
+	) +
+	ggrepel::geom_text_repel(data=filter(movies31, totalprofit>1.2e+9), aes(year, totalprofit, label = movie_name), size=2.5) +
+	labs(
+		title="Global Film Profits over time",
+		x="Year", 
+		y="Profit / USD"
+	) +
+	geom_smooth(data=movies31, aes(year, totalprofit), method="lm", se=F, colour="#ad466c")
+```
+
+This method shows a linear regression (pink) of the total profit of all movies over time, with a relatively low gradient to demonstrate the lack of change over long periods. It also includes all datapoints wth low alpha jittered in the background. Films that generated a profit over $1.2Bn are highlighted in blue. It is quite clear that the number of films generating very high profits has increased over time, although not as a percentage of total films - there are also many more low-profit films too.
+
+#### 3.6: Do sequels make more profit per dollar spent than non-sequels?
+How to define a sequel?
+*name matches ``{2, "II"}``*
+
+```{r}
+movies36 = movies31 %>% mutate(isSequel=str_detect(movie_name, c("2", "II")))
+movies36 %>% filter(isSequel==T) %>% knitr::kable()
+```
+
+Most of those films look like sequels, with the exception of *2 Guns*, *42*, *127 Hours*, *2012*, *28 Weeks Later*, *2046*, *28 Days* - of 53 detected sequels, <10 (i.e. 20%) are imposters. Thus, this seems like a reasonable criteria for this use. Now, let's work out profit per dolar spent:
+
+```{r}
+movies36 = movies36 %>% mutate(profitRatio=totalprofit/budget)
+```
+
+Now that the profit ratio is known, let's work out the average performance for sequals and non-sequals
+
+```{r}
+movies36 %>% drop_na() %>% group_by(isSequel) %>% summarize(meanRatio = mean(profitRatio)) %>% knitr::kable()
+```
+
+Thus, one can say that that when using this sequel criteria, sequels tend to generate a lower profit:budget ratio (7.R:1) than non-sequels (9.1:1). Thus, it'd probably be a safer bet to make a entirely new film than a sequel. This is not to say that sequels have no chance of making high profit - indeed when looking at the chart from section 3.5 one can see that there are a number of sequals in the highest earning category - just that they tend to perform worse on average.
+
+### Songs
+#### 3.7: Popularity
+##### 3.7A: What’s your best guess about the length of a track with higher than 75% popularity? 
+```{r}
+mean(filter(spotify, track_popularity>75)$duration_ms)/(1000)
+median(filter(spotify, track_popularity>75)$duration_ms)/(1000)
+```
+
+The mean length of a track with >75% popularity is 213 seconds, or 3 minutes and 33 seconds; median length is 3 minutes and 27 seconds. 
+
+##### 3.7B: How about your best guess for the popularity of a track between 2 and 3 minutes long? 
+
+```{r}
+mean(filter(spotify, duration_ms > (2 * 60 *1000) & duration_ms < (3 * 60 *1000))$track_popularity)
+median(filter(spotify, duration_ms > (2 * 60 *1000) & duration_ms < (3 * 60 *1000))$track_popularity)
+```
+The mean popularity of a 2-3 minute long track is 45%, and the median popularity is 48%.
+
+##### 3.7C: Which “piece” of information (popularity > 75% or duration between 2 & 3 minutes) gives you more useful information, and why do you think that?
+Looking only at the best tracks (3.7A), it's clear that their average length is longer than 3 minutes, which suggests that using a maximum 3 minute cutoff is not a good choice. The median length is also similar at 3 minutes and 27 seconds, suggesting this is not overally affected by extremely long tracks. When considering all tracks between 2 and 3 minutes (3.7B), it's easy to note that most songs in this range are not highly popular, with both mean and median performance below 50%. 
+```{r}
+ggplot(spotify, aes(track_popularity, duration_ms/(1000*60)))+
+    geom_point(position="jitter", alpha=0.1)+
+    geom_hline(yintercept=3,size=1, colour="#ad466c")+
+    geom_hline(yintercept=2,size=1, colour="#ad466c") +
+	labs(x="Popularity", y="Length / minutes", title="Popularity of Spotify tracks by length of track") +
+	scale_x_continuous(
+		labels =scales::percent_format(scale = 1)
+	) +
+	scale_y_continuous(breaks=seq(0,8,1))
+```
+
+Looking at this chart, there are clearly two different data groupings: One located around 0% popularity, where tracks contain a high variety of lengths, and another centred around 55% popularity, where the lengths tend to be between 2 and 4 minutes. Ultimately, the usefulness of information depends on the context of the question against it. However, when concidering the kinds of songs that spotify users actually listen to, it's likely that the majority of those are in the latter, higher popularity group. As such, I believe that the popularity filter is more useful in this instance.
+
+#### 3.8: What is the typical “energy” of each of the playlist genres? How about the typical “valence,” meaning “happiness,” of the genres?
+```{r}
+ggplot(pivot_longer(spotify, c(energy,valence), names_to="cat", values_to="val")) +
+	geom_boxplot(aes(playlist_genre, val, colour=cat))+
+	labs(x="Genre", y="Score", colour="Category") +
+	scale_y_continuous(
+		labels =scales::percent_format(scale = 100)
+	)
+```
+
+On average, all genres score higher than 50% for energy. R&B is the lowest energy genre, scoring on average 66% for energy - more than 10 points lower than the most energetic genre, EDM. When thinking about valence, the majority of genres score around 50% happiness, with the exception of the sad EDM songs (meadian valence of 37%) and more upbeat latin songs (median of 63%)
+
+#### 3.9: Danceability
+```{r,fig.width = 10}
+ggplot(
+	pivot_longer(spotify, c(tempo, energy, valence), 
+	names_to="cat", 
+	values_to="val")
+) + 
+	geom_point(aes(val, danceability, colour=cat), size=0.2)+
+	scale_y_continuous(
+		labels= scales::percent_format(scale = 100)
+	) +
+	theme(legend.position = "none") +
+	labs(
+		y = "Danceability",
+		title="Factors affecting the Dancability of a track",
+		x=""
+	) +
+	facet_grid(col= vars(cat), scales="free_x")
+```
+Of the three factors shown in this chart, the only clear relationship appears to exist between valence and danceability, with a roughly linear relationship showing that as valence increase, danceability also increases.
+
+For tempo, tracks with the highest dancability appear to have a tempo between 100 and 125bpm, with dancability decreasing outside of this range. 
+
+For Energy, it is broadly possible to say that most songs with a high dancability are high (>50%) energy, although the exact relationship here does not appear clear.
+
+```{r}
+ggplot(filter(spotify, danceability > 0.05)) +
+	geom_boxplot(aes(playlist_genre, danceability, colour=playlist_genre)) +
+	labs(x="Genre", y="Dancability") +
+	scale_y_continuous(
+		labels = scales::percent_format(scale = 100)
+	) +
+	theme(legend.position = "none")
+```
+
+When concidering genre of tracks, latin and rap appear to have the highest median dancability score, at around 70%. All other noted genres have fairly comparable centre and spread, with the exception of rock, which contains the lowest median score (53%), the lowest absolute score (0%) and the lowest maximum point. This zero point belongs to the track "Hi, How're You Doin'? by DREAMS COME TRUE. Upon further investigation, this track appears to be a short (4 second) intro to an album, which makes sense as to why it has a low score, but also appears to be an outlier. To remove this, a filter requiring a minimum score of 5% has been applied to the chart, which brings the lowest dance scores within a similar range to the other genre's least danceable songs.
+
+When concidering all factors together, the most dancable songs appear to be either latin or rap, with a tempo between 100-125bpm, and a middle-to-high energy and valence score in the region of 60-80%. This is not an absolute predictor - there are quite a lot of tracks meeting these critera that aren't very danceable according to Spotify.
+
+#### 3.10: One hit wonders
+Initially, let's calculate a score for how likely we anticipate a artist is to be a one hit wonder.
+
+```{r}
+ohw = spotify %>%
+	group_by(track_artist) %>%
+	summarize(
+		median = median(track_popularity), 
+		max = max(track_popularity), 
+		difference = max-median
+	) %>%
+	arrange(desc(difference)) 
+
+ohw2 = left_join( spotify,ohw, by="track_artist") %>% arrange(desc(difference), desc(track_popularity)) %>% distinct(track_id, .keep_all=TRUE) %>% filter(track_popularity == max)
+ohw2 %>% select(track_name, track_artist, track_popularity) %>% 
+slice(1:10) %>%
+knitr::kable()
+```
+This table shows the artists, and highest-performing song that were defined as One Hit Wonders using the difference between their most popular and median popularity songs as a benchmark. Using this method, none of the songs in the top 10 appear in wikipedia's (*List of one-hit wonders in the United States*) [https://en.wikipedia.org/wiki/List_of_one-hit_wonders_in_the_United_States
+], suggesting that this method does not provide an effective way of identifying one-hit wonder artists. For example, *50 Cent*, who has 13 UK top 10s and over 20 top-40s is unlikely to be concidered a one hit wonder by virtue of the number of high-performing songs they have produced.
+
+

@@ -1,0 +1,154 @@
+# 4: things
+## Tufty is back
+I do't like tufty's style, but it is pretty good
+
+## Principle of proportional ink
+- The things you spend ink on are the things people will look at
+- Anything that goes on the plot must be useful
+- Stuff that has more ink is more important
+- Don't include unneded lines
+- colour is good, but must be clear
+- chrome is as minimal as possible
+
+### redundant coding
+- one variable shows as two or more visuals
+- makes the point even clearer
+- we can perhaps even use colour in facets, which i don't think makes sense but we're doing it anyway
+
+### colour (theory)
+#### ramps
+- a set of colours
+
+##### sequential
+- from one colour to another
+- two point gradient
+- low to high intensity according to colour theory
+
+##### diverging
+- three point gradient
+- high to low to high intensity
+
+##### qualitative/categorical
+-
+
+cartocolours looks very pretty
+
+
+
+# The actual exercise
+```{r}
+library(tidyverse)
+library(ggrepel)
+library(hexbin)
+```
+```{r}
+best_in_class <- mpg %>%
+  group_by(class) %>%
+  filter(row_number(desc(hwy)) == 1)
+
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_text(aes(label = model), data = best_in_class)
+
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_point(size = 3, shape = 1, data = best_in_class) +
+  ggrepel::geom_label_repel(aes(label = model), data = best_in_class)
+```
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  scale_y_continuous(breaks = seq(15, 40, by = 5))
+
+presidential %>%
+  mutate(id = 33 + row_number()) %>%
+  ggplot(aes(start, id)) +
+    geom_point() +
+    geom_segment(aes(xend = end, yend = id)) +
+    scale_x_date(NULL, breaks = presidential$start, date_labels = "'%y")
+
+    base <- ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class))
+
+base + theme(legend.position = "left")
+base + theme(legend.position = "top")
+base + theme(legend.position = "bottom")
+base + theme(legend.position = "right") # the default
+
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  geom_smooth(se = FALSE) +
+  theme(legend.position = "bottom") +
+  guides(colour = guide_legend(nrow = 1, override.aes = list(size = 4)))
+#> `geom_smooth()` using method = 'loess' and formula 'y ~ x'?
+
+ggplot(diamonds, aes(carat, price)) +
+  geom_bin2d()
+
+ggplot(diamonds, aes(log10(carat), log10(price))) +
+  geom_bin2d()
+```
+
+
+```{r}
+    ggplot(mpg, aes(hwy, cty)) +
+    geom_point(aes(colour=class)) +
+    geom_smooth(method="lm", data=filter(mpg, class!="2seater"), se=F) +
+    labs(
+        title="Fuel Economy under different conditions",
+        x="City Driving / mpg", 
+        y="Highway Driving / mpg"
+    )
+```
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(colour = class)) +
+  scale_x_continuous() +
+  scale_y_continuous() +
+  scale_colour_discrete() +
+  scale_colour_brewer(palette = "Set1")
+```
+
+```{r}
+    presidential %>%
+  mutate(id = 33 + row_number()) %>%
+  ggplot(aes(start, id, colour = party)) +
+    geom_point() +
+    geom_segment(aes(xend = end, yend = id)) +
+    scale_colour_manual(values = c(Republican = "red", Democratic = "blue"))
+```
+
+```{r}
+df <- tibble(
+  x = rnorm(10000),
+  y = rnorm(10000)
+)
+ggplot(df, aes(x, y)) +
+  geom_hex() +
+  coord_fixed()
+
+ggplot(df, aes(x, y)) +
+  geom_hex() +
+  viridis::scale_fill_viridis() +
+  coord_fixed()
+
+```
+
+```{r}
+ggplot(df, aes(x, y)) +
+  geom_hex() +
+  scale_fill_gradient(low = "white", high = "red") +
+  coord_fixed()
+```
+
+```{r}
+presidential %>%
+  mutate(id = 33 + row_number()) %>%
+  ggplot(aes(start, id, colour = party)) +
+    geom_point() +
+    geom_segment(aes(xend = end, yend = id)) +
+    scale_colour_manual(values = c(Republican = "red", Democratic = "blue")) +
+    scale_y_continuous()
+```

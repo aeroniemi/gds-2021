@@ -92,3 +92,8 @@ pivot_wider(
     values_from = "value", # the current values column
 )
 ```
+
+#### Need a bar chart to show a axis in a dataset?
+```
+geom_bar(mapping = aes(x = cut, y = freq), stat = "identity")
+```

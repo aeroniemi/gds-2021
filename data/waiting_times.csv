@@ -1,0 +1,18 @@
+waiting,pub,pub_number,long_wait,drinktype
+5.8965695879268,The Berkeley,1,TRUE,Beer
+8.82213597647739,The Berkeley,1,TRUE,Beer
+4.52189121751075,The Berkeley,1,TRUE,Beer
+6.6568445410944,The Berkeley,1,TRUE,Cocktail
+1.00588343292475,The Berkeley,1,TRUE,Cocktail
+1.29678035899997,The Berkeley,1,FALSE,Beer
+0.630697506360811,The Gallimaufry,2,TRUE,Cocktail
+3.31269540580663,The Gallimaufry,2,TRUE,Cocktail
+0.828961919760332,The Gallimaufry,2,FALSE,Beer
+2.22633383809317,The Gallimaufry,2,TRUE,Beer
+0.711169834244938,The Gallimaufry,2,FALSE,Beer
+1.68349611922167,The Gallimaufry,2,TRUE,Beer
+0.409426691476256,The Gallimaufry,2,TRUE,Beer
+15.6889250121059,The Milk Thistle,3,TRUE,Beer
+2.69624698674306,The Milk Thistle,3,FALSE,Beer
+1.86361741041765,The Milk Thistle,3,FALSE,Cocktail
+4.81304648776954,The Milk Thistle,3,TRUE,Beer
